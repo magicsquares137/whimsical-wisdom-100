@@ -1,7 +1,9 @@
+import csv
+import io
 import json
 import os
 import random
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 app = Flask(__name__)
 
@@ -80,6 +82,43 @@ def get_quotes():
         'total': len(results),
         'quotes': results
     })
+
+@app.route('/api/quotes/export/csv', methods=['GET'])
+def export_quotes_csv():
+    """
+    Export quotes matching query params as a downloadable CSV file.
+    """
+    query = request.args.get('q', '').strip().lower()
+    category = request.args.get('category', '').strip().lower()
+    author = request.args.get('author', '').strip().lower()
+
+    results = quotes_data
+
+    if category and category != 'all':
+        results = [q for q in results if q['category'].lower() == category]
+
+    if author:
+        results = [q for q in results if author in q['author'].lower()]
+
+    if query:
+        results = [
+            q for q in results
+            if query in q['quote'].lower() or query in q['author'].lower()
+        ]
+
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(['ID', 'Quote', 'Author', 'Category'])
+
+    for q in results:
+        writer.writerow([q['id'], q['quote'], q['author'], q['category']])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=quotes.csv'}
+    )
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():

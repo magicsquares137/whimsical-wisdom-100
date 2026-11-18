@@ -105,3 +105,22 @@ def test_get_authors(client):
     assert 'authors' in data
     assert len(data['authors']) > 20
     assert 'Albert Einstein' in data['authors']
+
+def test_export_quotes_csv_all(client):
+    """Test GET /api/quotes/export/csv exports all 100 quotes."""
+    response = client.get('/api/quotes/export/csv')
+    assert response.status_code == 200
+    assert response.mimetype == 'text/csv'
+    assert 'attachment; filename=quotes.csv' in response.headers.get('Content-Disposition', '')
+    lines = response.get_data(as_text=True).strip().splitlines()
+    assert lines[0] == 'ID,Quote,Author,Category'
+    assert len(lines) == 101  # header + 100 quotes
+
+def test_export_quotes_csv_filtered(client):
+    """Test GET /api/quotes/export/csv with filters."""
+    response = client.get('/api/quotes/export/csv?category=Science')
+    assert response.status_code == 200
+    lines = response.get_data(as_text=True).strip().splitlines()
+    assert len(lines) > 1
+    assert 'Science' in lines[1]
+
